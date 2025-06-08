@@ -15,7 +15,7 @@ public class BookingEntity
     public DateTime BookingDate { get; set; } = DateTime.UtcNow;
 
     [Required]
-    public Guid UserId { get; set; } // TO DO koppla via Auth senare ANNARS måste jag lägga till bookingowner osv om jag inte hinner fixa inlogg
+    public Guid UserId { get; set; }
 
     public Guid? PackageId { get; set; }
 }

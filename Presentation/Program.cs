@@ -1,3 +1,4 @@
+using Azure.Identity;
 using Business.Interfaces;
 using Business.Services;
 using Data.Context;
@@ -5,15 +6,25 @@ using Data.Interfaces;
 using Data.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+//Key Vault as Configuration Source
+builder.Configuration.AddAzureKeyVault(
+    new Uri("https://ventixekeyvault.vault.azure.net/"),
+    new DefaultAzureCredential()
+);
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
+// Swagger + JWT
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "AccountProfile API", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Booking Service API", Version = "v1" });
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'",
@@ -39,6 +50,7 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// Connection to database from Key Vault
 builder.Services.AddDbContext<DataContext>(x =>
     x.UseSqlServer(
         builder.Configuration.GetConnectionString("SqlConnection"),
@@ -49,6 +61,7 @@ builder.Services.AddDbContext<DataContext>(x =>
 builder.Services.AddScoped<IBookingRepository, BookingRepository>();
 builder.Services.AddScoped<IBookingService, BookingService>();
 
+// JWT-autentisering (fetch from Key Vault)
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -74,29 +87,32 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+// CORS for frontend from Azure Static Web Apps
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("https://agreeable-stone-0b26cb203.6.azurestaticapps.net")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
 
+// Swagger UI
+app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Event Service API V1");
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Booking Service API V1");
     c.RoutePrefix = string.Empty;
 });
 
-app.MapOpenApi();
-
-app.UseSwagger();
+app.UseCors("AllowFrontend");
 
 app.UseHttpsRedirection();
-app.UseCors(x => x
-    .AllowAnyOrigin()
-    .AllowAnyMethod()
-    .AllowAnyHeader());
-
-app.UseCors("AllowAll");
-
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();

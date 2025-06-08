@@ -1,5 +1,4 @@
-﻿// BookingService.cs
-using Business.Factories;
+﻿using Business.Factories;
 using Business.Interfaces;
 using Business.Models;
 using Data.Entities;
@@ -7,17 +6,26 @@ using Data.Interfaces;
 
 namespace Business.Services;
 
+/// <summary>
+/// Service responsible for handling booking-related business logic.
+/// </summary>
 public class BookingService(IBookingRepository bookingRepository) : IBookingService
 {
     private readonly IBookingRepository _bookingRepository = bookingRepository;
 
+
+    //Creates a new booking using the provided request data.
     public async Task<BookingResult> CreateBooking(CreateBookingRequest request)
     {
         try
         {
+            // Convert request to BookingEntity
             var booking = BookingFactory.FromRequest(request);
+
+            // Attempt to persist the booking
             var result = await _bookingRepository.AddAsync(booking);
 
+            // Return appropriate result
             if (!result.Succeeded)
                 return BookingResult.CreateFailure(result.Error ?? "Could not create booking", result.StatusCode);
 
@@ -29,6 +37,7 @@ public class BookingService(IBookingRepository bookingRepository) : IBookingServ
         }
     }
 
+    //Retrieves all bookings made by a specific user.
     public async Task<BookingResult<IEnumerable<BookingEntity>>> GetBookingsForUserAsync(Guid userId)
     {
         try
@@ -42,6 +51,7 @@ public class BookingService(IBookingRepository bookingRepository) : IBookingServ
         }
     }
 
+    // Deletes a booking by ID.
     public async Task<BookingResult> DeleteBookingAsync(Guid id)
     {
         var booking = await _bookingRepository.GetOneAsync(x => x.Id == id);
@@ -54,6 +64,7 @@ public class BookingService(IBookingRepository bookingRepository) : IBookingServ
             : BookingResult.CreateFailure(result.Error ?? "Could not delete booking", result.StatusCode);
     }
 
+    // Updates an existing booking with new data.
     public async Task<BookingResult> UpdateBookingAsync(Guid id, UpdateBookingRequest request)
     {
         var booking = await _bookingRepository.GetOneAsync(x => x.Id == id);
